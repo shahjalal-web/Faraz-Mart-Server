@@ -1,0 +1,31 @@
+{
+  "name": "faraz-mart-backend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "seed:admin": "tsx scripts/seed-admin.ts",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^5.1.0",
+    "jose": "^6.2.12",
+    "mongoose": "^9.10.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9",
+    "@types/cookie-parser": "^1.4.9",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^20",
+    "eslint": "^9",
+    "tsx": "^4.23.13",
+    "typescript": "^5",
+    "typescript-eslint": "^8"
+  }
+}
