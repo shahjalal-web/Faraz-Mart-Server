@@ -15,7 +15,9 @@ const adminUserSchema = new Schema(
   {
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    passwordHash: { type: String, required: true },
+    // Firebase Authentication owns the actual password now — this just links
+    // the Mongo profile/role record to the Firebase Auth user.
+    firebaseUid: { type: String, required: true, unique: true },
     role: { type: String, enum: ADMIN_ROLES, default: "admin", required: true },
     isActive: { type: Boolean, default: true },
     lastLoginAt: { type: Date },

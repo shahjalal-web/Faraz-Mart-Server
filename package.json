@@ -6,6 +6,7 @@
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "seed:admin": "tsx scripts/seed-admin.ts",
+    "migrate:catalog": "tsx scripts/migrate-catalog.ts",
     "lint": "eslint ."
   },
   "dependencies": {
@@ -14,11 +15,14 @@
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^5.1.0",
+    "firebase-admin": "^14.4.0",
+    "google-auth-library": "^11.0.2",
     "jose": "^6.2.12",
     "mongoose": "^9.10.0"
   },
   "devDependencies": {
     "@eslint/js": "^9",
+    "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.9",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",

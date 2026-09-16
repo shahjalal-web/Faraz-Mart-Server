@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { connectToDatabase } from "../db";
 import { AdminUser } from "../models/admin-user";
-import { verifyPassword } from "../utils/password";
+import { getFirebaseAuth } from "../firebase-admin";
 import { ADMIN_SESSION_COOKIE, signAdminToken } from "../utils/jwt";
 import { requireAdmin } from "../middleware/require-admin";
 
@@ -11,22 +11,31 @@ const GENERIC_ERROR = "Invalid email or password.";
 const SESSION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7; // 7 days, matches the JWT's own expiry
 
 router.post("/login", async (req, res) => {
-  const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
-  const password = typeof req.body?.password === "string" ? req.body.password : "";
+  const idToken = typeof req.body?.idToken === "string" ? req.body.idToken : "";
 
-  if (!email || !password) {
+  if (!idToken) {
     return res.status(400).json({ error: GENERIC_ERROR });
+  }
+
+  // Firebase already confirmed the password when it issued this ID token on
+  // the client — this call just verifies the token is genuine and unexpired.
+  let decoded;
+  try {
+    decoded = await getFirebaseAuth().verifyIdToken(idToken);
+  } catch {
+    return res.status(401).json({ error: GENERIC_ERROR });
+  }
+
+  if (!decoded.email) {
+    return res.status(401).json({ error: GENERIC_ERROR });
   }
 
   await connectToDatabase();
 
-  const admin = await AdminUser.findOne({ email });
+  // Being a valid Firebase user is not enough on its own — only an email
+  // that's also registered here (with a role) counts as an admin.
+  const admin = await AdminUser.findOne({ email: decoded.email.toLowerCase() });
   if (!admin || !admin.isActive) {
-    return res.status(401).json({ error: GENERIC_ERROR });
-  }
-
-  const isValidPassword = await verifyPassword(password, admin.passwordHash);
-  if (!isValidPassword) {
     return res.status(401).json({ error: GENERIC_ERROR });
   }
 

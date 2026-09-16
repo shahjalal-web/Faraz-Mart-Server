@@ -14,5 +14,12 @@
     "types": ["node"]
   },
   "include": ["src", "scripts"],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    // Deliberately imports across the repo boundary into fazar-mart/data/
+    // (a one-time catalog migration) — tsx runs it fine (its only import
+    // from there is `import type`, erased at runtime), but tsc would try to
+    // resolve fazar-mart's own "@/" alias, which this project doesn't have.
+    "scripts/migrate-catalog.ts"
+  ]
 }

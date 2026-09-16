@@ -1,4 +1,13 @@
+import dns from "node:dns";
 import mongoose from "mongoose";
+
+// mongodb+srv:// needs a DNS SRV lookup to find the cluster's real hosts.
+// Node's own resolver (c-ares) can fail that lookup with ECONNREFUSED on
+// networks where a VPN/virtual adapter's DNS server (visible to the OS
+// resolver, e.g. via `nslookup`) doesn't answer c-ares' query the same way —
+// a known Node-on-VPN issue. Pointing Node at public DNS resolvers sidesteps
+// it without needing a different connection string.
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
 let connected = false;
 
