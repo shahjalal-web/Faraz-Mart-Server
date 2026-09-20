@@ -35,7 +35,7 @@ router.get("/:id", async (req, res) => {
   res.json(category);
 });
 
-router.post("/", requireAdmin(), async (req, res) => {
+router.post("/", requireAdmin("categories.manage"), async (req, res) => {
   await connectToDatabase();
   const payload = buildCategoryPayload(req.body ?? {});
   if (!payload.name || !payload.slug) {
@@ -50,7 +50,7 @@ router.post("/", requireAdmin(), async (req, res) => {
   }
 });
 
-router.put("/:id", requireAdmin(), async (req, res) => {
+router.put("/:id", requireAdmin("categories.manage"), async (req, res) => {
   await connectToDatabase();
   const existing = await Category.findById(req.params.id).catch(() => null);
   if (!existing) return res.status(404).json({ error: "Category not found." });
@@ -78,7 +78,7 @@ router.put("/:id", requireAdmin(), async (req, res) => {
   }
 });
 
-router.delete("/:id", requireAdmin(), async (req, res) => {
+router.delete("/:id", requireAdmin("categories.manage"), async (req, res) => {
   await connectToDatabase();
   const existing = await Category.findById(req.params.id).catch(() => null);
   if (!existing) return res.status(404).json({ error: "Category not found." });

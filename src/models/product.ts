@@ -25,6 +25,12 @@ const productSchema = new Schema(
     description: { type: String, required: true },
     images: { type: [String], default: [] },
     thumbnail: { type: String, required: true },
+    // Cloudinary public_ids, parallel to images[]/thumbnail — kept so a
+    // product delete can also delete its images from Cloudinary. Absent for
+    // the original mock-data products (their thumbnail/images are gradient
+    // seed keys, not real Cloudinary URLs) and for any image set by URL only.
+    thumbnailPublicId: { type: String },
+    imagePublicIds: { type: [String], default: [] },
     price: { type: Number, required: true, min: 0 },
     salePrice: { type: Number, min: 0 },
     stock: { type: Number, default: 0, min: 0 },

@@ -10,6 +10,14 @@ declare global {
   }
 }
 
+/** The signed-in customer behind a request, or null — never rejects, for routes that work for guests too. */
+export async function resolveCustomer(req: Request): Promise<CustomerTokenPayload | null> {
+  const token = req.cookies?.[CUSTOMER_SESSION_COOKIE];
+  if (!token) return null;
+  return verifyCustomerToken(token);
+}
+
+/** Customer-side gate, mirroring require-admin.ts: re-verifies the customer session cookie on every request. */
 export function requireCustomer() {
   return async (req: Request, res: Response, next: NextFunction) => {
     const token = req.cookies?.[CUSTOMER_SESSION_COOKIE];

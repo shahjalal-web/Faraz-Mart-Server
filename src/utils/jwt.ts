@@ -3,7 +3,6 @@ import type { AdminRole } from "../models/admin-user";
 
 export const ADMIN_SESSION_COOKIE = "faraz_admin_session";
 const JWT_ALG = "HS256";
-const SESSION_DURATION = "7d";
 
 export interface AdminTokenPayload {
   sub: string;
@@ -25,12 +24,15 @@ function getSecretKey(): Uint8Array {
  * copy of `verifyAdminToken` (see fazar-mart/lib/auth/jwt.ts) so it can check
  * the JWT once at the page-navigation layer without calling this service.
  * Both sides MUST share the same JWT_SECRET for that shared check to work.
+ *
+ * `sessionDays` comes from Settings > Security so an owner can shorten how
+ * long a stolen/forgotten login stays valid.
  */
-export async function signAdminToken(payload: AdminTokenPayload): Promise<string> {
+export async function signAdminToken(payload: AdminTokenPayload, sessionDays = 7): Promise<string> {
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: JWT_ALG })
     .setIssuedAt()
-    .setExpirationTime(SESSION_DURATION)
+    .setExpirationTime(`${sessionDays}d`)
     .sign(getSecretKey());
 }
 
@@ -47,7 +49,7 @@ export async function verifyAdminToken(token: string): Promise<AdminTokenPayload
         sub: payload.sub,
         email: payload.email,
         name: payload.name,
-        role: payload.role as AdminRole,
+        role: payload.role,
       };
     }
     return null;

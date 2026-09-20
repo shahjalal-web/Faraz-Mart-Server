@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Router } from "express";
 import { OAuth2Client } from "google-auth-library";
 import { connectToDatabase } from "../db";
@@ -6,6 +7,13 @@ import { hashPassword, verifyPassword } from "../utils/password";
 import { CUSTOMER_SESSION_COOKIE, signCustomerToken } from "../utils/customer-jwt";
 import { requireCustomer } from "../middleware/require-customer";
 import { errorMessage } from "../utils/errors";
+import { getSettings } from "../services/settings";
+import { sendMail } from "../utils/mailer";
+
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+// Always the same wording whether or not the account exists — otherwise this endpoint
+// becomes a way to check which emails/phones have an account (user enumeration).
+const FORGOT_PASSWORD_GENERIC_MESSAGE = "If an account exists for that email or phone number, we've sent a password reset link.";
 
 const router = Router();
 
@@ -42,11 +50,16 @@ router.post("/register", async (req, res) => {
   if (!name || !password || (!email && !phone)) {
     return res.status(400).json({ error: "Name, password and an email or phone number are required." });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ error: "Password must be at least 6 characters." });
-  }
 
   await connectToDatabase();
+
+  const { security } = await getSettings();
+  if (!security.allowCustomerRegistration) {
+    return res.status(403).json({ error: "New account registration is currently closed." });
+  }
+  if (password.length < security.minPasswordLength) {
+    return res.status(400).json({ error: `Password must be at least ${security.minPasswordLength} characters.` });
+  }
 
   if (email && (await Customer.exists({ email }))) {
     return res.status(409).json({ error: "An account with this email already exists." });
@@ -93,6 +106,9 @@ router.post("/login", async (req, res) => {
     return res.status(401).json({ error: GENERIC_LOGIN_ERROR });
   }
 
+  customer.lastLoginAt = new Date();
+  await customer.save();
+
   const token = await signCustomerToken({ sub: customer.id, name: customer.name, email: customer.email, phone: customer.phone });
   setSessionCookie(res, token);
   res.json({ customer: publicCustomer(customer) });
@@ -134,6 +150,10 @@ router.post("/google", async (req, res) => {
       if (payload.picture) customer.avatarUrl = payload.picture;
       await customer.save();
     } else {
+      const { security } = await getSettings();
+      if (!security.allowCustomerRegistration) {
+        return res.status(403).json({ error: "New account registration is currently closed." });
+      }
       customer = await Customer.create({
         name: payload.name ?? payload.email.split("@")[0],
         email: payload.email.toLowerCase(),
@@ -147,8 +167,83 @@ router.post("/google", async (req, res) => {
     return res.status(401).json({ error: "This account has been disabled." });
   }
 
+  customer.lastLoginAt = new Date();
+  await customer.save();
+
   const token = await signCustomerToken({ sub: customer.id, name: customer.name, email: customer.email, phone: customer.phone });
   setSessionCookie(res, token);
+  res.json({ customer: publicCustomer(customer) });
+});
+
+router.post("/forgot-password", async (req, res) => {
+  const identifier = typeof req.body?.identifier === "string" ? req.body.identifier.trim() : "";
+  if (!identifier) {
+    return res.status(400).json({ error: "Enter your email or phone number." });
+  }
+
+  await connectToDatabase();
+
+  const normalized = identifier.toLowerCase();
+  const customer = await Customer.findOne({ $or: [{ email: normalized }, { phone: identifier }] });
+  let devResetLink: string | undefined;
+
+  if (customer && customer.isActive) {
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    customer.resetPasswordTokenHash = await hashPassword(rawToken);
+    customer.resetPasswordExpiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+    await customer.save();
+
+    const frontendUrl = (process.env.CORS_ORIGIN ?? "http://localhost:3000").split(",")[0].trim();
+    const resetLink = `${frontendUrl}/reset-password?id=${customer.id}&token=${rawToken}`;
+    const to = customer.email || customer.phone || "";
+    await sendMail({
+      to,
+      subject: "Reset your Faraz Mart password",
+      text: `We received a request to reset your Faraz Mart password. This link expires in 1 hour:\n\n${resetLink}\n\nIf you didn't request this, you can safely ignore this message.`,
+    }).catch(() => {
+      // A failed/unconfigured mail provider must never leak into the (generic) API response.
+    });
+    // No real mail provider is wired up yet (see utils/mailer.ts) — outside production,
+    // hand the link back directly so the reset flow is actually testable end to end.
+    if (process.env.NODE_ENV !== "production") devResetLink = resetLink;
+  }
+
+  res.json({ message: FORGOT_PASSWORD_GENERIC_MESSAGE, ...(devResetLink ? { devResetLink } : {}) });
+});
+
+router.post("/reset-password", async (req, res) => {
+  const id = typeof req.body?.id === "string" ? req.body.id : "";
+  const token = typeof req.body?.token === "string" ? req.body.token : "";
+  const password = typeof req.body?.password === "string" ? req.body.password : "";
+
+  if (!id || !token || !password) {
+    return res.status(400).json({ error: "This reset link is invalid." });
+  }
+
+  await connectToDatabase();
+
+  const { security } = await getSettings();
+  if (password.length < security.minPasswordLength) {
+    return res.status(400).json({ error: `Password must be at least ${security.minPasswordLength} characters.` });
+  }
+
+  const customer = await Customer.findById(id);
+  if (!customer || !customer.resetPasswordTokenHash || !customer.resetPasswordExpiresAt || customer.resetPasswordExpiresAt.getTime() < Date.now()) {
+    return res.status(400).json({ error: "This reset link is invalid or has expired. Please request a new one." });
+  }
+
+  const isValidToken = await verifyPassword(token, customer.resetPasswordTokenHash);
+  if (!isValidToken) {
+    return res.status(400).json({ error: "This reset link is invalid or has expired. Please request a new one." });
+  }
+
+  customer.passwordHash = await hashPassword(password);
+  customer.resetPasswordTokenHash = undefined;
+  customer.resetPasswordExpiresAt = undefined;
+  await customer.save();
+
+  const sessionToken = await signCustomerToken({ sub: customer.id, name: customer.name, email: customer.email, phone: customer.phone });
+  setSessionCookie(res, sessionToken);
   res.json({ customer: publicCustomer(customer) });
 });
 

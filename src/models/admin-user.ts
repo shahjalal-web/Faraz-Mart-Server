@@ -1,15 +1,8 @@
 import mongoose, { Schema, type InferSchemaType } from "mongoose";
+import { applyIdTransform } from "../utils/to-json";
 
-export const ADMIN_ROLES = [
-  "super-admin",
-  "admin",
-  "manager",
-  "order-manager",
-  "product-manager",
-  "support-agent",
-] as const;
-
-export type AdminRole = (typeof ADMIN_ROLES)[number];
+/** A Role's `key` (see models/role.ts) — a string now, since admins can define custom roles. */
+export type AdminRole = string;
 
 const adminUserSchema = new Schema(
   {
@@ -18,12 +11,14 @@ const adminUserSchema = new Schema(
     // Firebase Authentication owns the actual password now — this just links
     // the Mongo profile/role record to the Firebase Auth user.
     firebaseUid: { type: String, required: true, unique: true },
-    role: { type: String, enum: ADMIN_ROLES, default: "admin", required: true },
+    role: { type: String, default: "admin", required: true, lowercase: true, trim: true },
     isActive: { type: Boolean, default: true },
     lastLoginAt: { type: Date },
   },
   { timestamps: true }
 );
+
+applyIdTransform(adminUserSchema);
 
 export type AdminUserDocument = InferSchemaType<typeof adminUserSchema>;
 

@@ -57,13 +57,23 @@ const orderSchema = new Schema(
     shippingAddress: { type: shippingAddressSchema, required: true },
     deliveryMethod: { type: String, enum: ["standard", "express"], required: true },
     paymentMethod: { type: String, enum: ["card", "cod", "mobile-banking"], required: true },
+    // Set when a signed-in customer placed the order (guest checkout leaves it empty).
+    customerId: { type: String, index: true },
     couponCode: { type: String },
     subtotal: { type: Number, required: true },
+    // Total discount = couponDiscount + promotionDiscount (kept as one number for the existing order UI).
     discount: { type: Number, required: true },
+    couponDiscount: { type: Number, default: 0 },
+    promotionDiscount: { type: Number, default: 0 },
+    promotionNames: { type: [String], default: [] },
     shipping: { type: Number, required: true },
     tax: { type: Number, required: true },
     total: { type: Number, required: true },
     status: { type: String, enum: ORDER_STATUSES, default: "pending" },
+    // Stock bookkeeping: orders placed before inventory tracking never deducted stock, so cancelling
+    // them must not add any back. `restocked` stops a cancelled order from restocking twice.
+    stockDeducted: { type: Boolean, default: false },
+    restocked: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

@@ -4,11 +4,13 @@ import { AdminUser } from "../models/admin-user";
 import { getFirebaseAuth } from "../firebase-admin";
 import { ADMIN_SESSION_COOKIE, signAdminToken } from "../utils/jwt";
 import { requireAdmin } from "../middleware/require-admin";
+import { getRolePermissions } from "../services/rbac";
+import { getSettings } from "../services/settings";
 
 const router = Router();
 
 const GENERIC_ERROR = "Invalid email or password.";
-const SESSION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7; // 7 days, matches the JWT's own expiry
+const DAY_MS = 1000 * 60 * 60 * 24;
 
 router.post("/login", async (req, res) => {
   const idToken = typeof req.body?.idToken === "string" ? req.body.idToken : "";
@@ -39,12 +41,17 @@ router.post("/login", async (req, res) => {
     return res.status(401).json({ error: GENERIC_ERROR });
   }
 
-  const token = await signAdminToken({
-    sub: admin.id,
-    email: admin.email,
-    name: admin.name,
-    role: admin.role,
-  });
+  // Session length is a Settings > Security value; the JWT and the cookie both use it.
+  const { security } = await getSettings();
+  const token = await signAdminToken(
+    {
+      sub: admin.id,
+      email: admin.email,
+      name: admin.name,
+      role: admin.role,
+    },
+    security.adminSessionDays
+  );
 
   admin.lastLoginAt = new Date();
   await admin.save();
@@ -54,11 +61,13 @@ router.post("/login", async (req, res) => {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: SESSION_MAX_AGE_MS,
+    maxAge: security.adminSessionDays * DAY_MS,
     ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
   });
 
-  res.json({ admin: { name: admin.name, email: admin.email, role: admin.role } });
+  res.json({
+    admin: { name: admin.name, email: admin.email, role: admin.role, permissions: await getRolePermissions(admin.role) },
+  });
 });
 
 router.post("/logout", (_req, res) => {

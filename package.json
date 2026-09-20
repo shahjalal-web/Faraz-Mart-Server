@@ -7,10 +7,13 @@
     "start": "tsx src/server.ts",
     "seed:admin": "tsx scripts/seed-admin.ts",
     "migrate:catalog": "tsx scripts/migrate-catalog.ts",
+    "seed:defaults": "tsx scripts/seed-defaults.ts",
+    "setup:cloudinary": "tsx scripts/setup-cloudinary-preset.ts",
     "lint": "eslint ."
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.11.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
