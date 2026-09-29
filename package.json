@@ -18,9 +18,9 @@
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^5.1.0",
-    "firebase-admin": "^14.4.0",
+    "firebase-admin": "^13.10.0",
     "google-auth-library": "^11.0.2",
-    "jose": "^6.2.12",
+    "jose": "^5.10.0",
     "mongoose": "^9.10.0"
   },
   "devDependencies": {
