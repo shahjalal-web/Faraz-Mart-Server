@@ -2,8 +2,11 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022"],
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    // CommonJS, not ESNext: Vercel compiles each file with this tsconfig and
+    // runs the output as-is. ESNext kept `import "../src/app"` (no extension,
+    // no "type": "module"), which Node can't load → FUNCTION_INVOCATION_FAILED.
+    "module": "CommonJS",
+    "moduleResolution": "Node",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
