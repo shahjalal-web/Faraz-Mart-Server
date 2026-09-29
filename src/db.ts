@@ -6,8 +6,17 @@ import mongoose from "mongoose";
 // networks where a VPN/virtual adapter's DNS server (visible to the OS
 // resolver, e.g. via `nslookup`) doesn't answer c-ares' query the same way —
 // a known Node-on-VPN issue. Pointing Node at public DNS resolvers sidesteps
-// it without needing a different connection string.
-dns.setServers(["8.8.8.8", "1.1.1.1"]);
+// it without needing a different connection string. Local dev only: on
+// Vercel (`process.env.VERCEL` is set) this isn't needed and outbound
+// queries to arbitrary DNS servers may be restricted by the sandbox, so
+// calling this there risks crashing the whole module at import time.
+if (!process.env.VERCEL) {
+  try {
+    dns.setServers(["8.8.8.8", "1.1.1.1"]);
+  } catch (error) {
+    console.error("Couldn't override DNS servers (continuing with the default resolver):", error);
+  }
+}
 
 let connected = false;
 
