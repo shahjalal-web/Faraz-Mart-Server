@@ -3,7 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import adminAuthRoutes from "./routes/admin-auth.routes";
 import adminUsersRoutes from "./routes/admin-users.routes";
-import rolesRoutes from "./routes/roles.routes";
+import rolesRoutes, { ensureDefaultRoles } from "./routes/roles.routes";
 import settingsRoutes from "./routes/settings.routes";
 import notificationsRoutes from "./routes/notifications.routes";
 import customerAuthRoutes from "./routes/customer-auth.routes";
@@ -89,3 +89,14 @@ export function createApp() {
 
   return app;
 }
+
+// Vercel's Express preset uses this file as the serverless entry point and
+// calls its default export per request, so it must be an app, not a factory.
+const app = createApp();
+
+if (process.env.VERCEL) {
+  // Idempotent; locally, server.ts runs this once after listen() instead.
+  ensureDefaultRoles().catch((error) => console.error("Couldn't ensure default roles:", error));
+}
+
+export default app;

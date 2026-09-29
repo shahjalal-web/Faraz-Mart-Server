@@ -16,7 +16,7 @@
     "isolatedModules": true,
     "types": ["node"]
   },
-  "include": ["src", "scripts", "api"],
+  "include": ["src", "scripts"],
   "exclude": [
     "node_modules",
     // Deliberately imports across the repo boundary into fazar-mart/data/
